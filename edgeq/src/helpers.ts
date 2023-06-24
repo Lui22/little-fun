@@ -2,7 +2,8 @@ export function toRadians(angle: number) {
 	return angle * (Math.PI / 180);
 }
 
-const DISCRIMINATOR = 350;
+const DISCRIMINATOR = 90;
+
 export function normalize(number: number) {
 	if (number === 1) return 1;
 
@@ -15,11 +16,9 @@ export function normalize(number: number) {
 
 export function goToZero(oldValue: number) {
 	if (oldValue <= DISCRIMINATOR) return DISCRIMINATOR;
-	return oldValue - 1;
+	return oldValue - .5;
 }
 
 export function invertOffset(oldValue: number) {
-	if (oldValue <= DISCRIMINATOR) return oldValue += 50;
-	// if (oldValue > DISCRIMINATOR) return oldValue += 70 ;
-	return oldValue;
+	return Math.min(oldValue += 40, 100);
 }

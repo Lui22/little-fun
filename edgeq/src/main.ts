@@ -8,7 +8,7 @@ import {
 	Object3D,
 	PerspectiveCamera, Raycaster,
 	Scene,
-	Shape, Vector2,
+	Shape, Vector2, Vector3,
 	WebGLRenderer
 } from 'three';
 
@@ -138,6 +138,7 @@ function render() {
 						-50 + y * 10 * distanceOffset,
 						-40 + z * 10 * distanceOffset
 					);
+
 					dummy.updateMatrix();
 					mesh.setMatrixAt(i++, dummy.matrix);
 
@@ -177,8 +178,9 @@ function onPointerEvent(event: MouseEvent) {
 	if (intersects.length > 0) {
 		for (const intersect of intersects) {
 			if (!intersect.instanceId) continue;
+			console.log(intersect.instanceId);
 			// console.log('intersect.distance', intersect.distance);
-			updateArray[intersect.instanceId] = invertOffset(intersect.distance);
+			updateArray[intersect.instanceId] = invertOffset(intersect.point.distanceTo(new Vector3(0, 0, 0)));
 			// mesh.getMatrixAt(intersect.instanceId, dummy.matrix);
 			// dummy.updateMatrix();
 			// dummy.translateY(1 * intersect.distance);
