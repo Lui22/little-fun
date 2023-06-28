@@ -1,27 +1,27 @@
 import {
-	AmbientLight,
+	AmbientLight, BoxGeometry,
 	Color,
 	DirectionalLight,
 	ExtrudeGeometry,
-	InstancedMesh,
+	InstancedMesh, Mesh,
 	MeshLambertMaterial,
 	Object3D,
 	PerspectiveCamera, Raycaster,
 	Scene,
-	Shape, Vector2, Vector3,
+	Shape, SphereGeometry, Vector2, Vector3,
 	WebGLRenderer
 } from 'three';
 
 import Stats from 'three/addons/libs/stats.module.js';
 import {GUI} from 'three/addons/libs/lil-gui.module.min.js';
-import {goToZero, invertOffset, normalize, toRadians} from './helpers';
+import {goToZero, invertOffset, map, normalize, overlap, toRadians} from './helpers';
 
 let camera: PerspectiveCamera, scene: Scene, renderer: WebGLRenderer, stats: { dom: any; update: () => void; };
-
 let mesh: InstancedMesh<ExtrudeGeometry, MeshLambertMaterial>;
+let hoverArea: Mesh;
 const amount = 10;
 const count = 2 * amount ** 3;
-const dummy = new Object3D();
+let dummy: Mesh;
 
 const light = new DirectionalLight(0xffffff, .1);
 const lightControls = {
@@ -31,7 +31,6 @@ const lightControls = {
 	intensity: 0.4
 };
 
-
 const meshControls = {
 	rotX: 30,
 	rotY: -45,
@@ -40,7 +39,6 @@ const meshControls = {
 };
 
 const updateArray = new Array<number>;
-
 
 init();
 animate();
@@ -58,6 +56,16 @@ function init() {
 	light.position.set(0, 50, 200).normalize();
 	scene.add(light);
 
+	const boxGeo = new BoxGeometry(30, 30, 30);
+	hoverArea = new Mesh(boxGeo, new MeshLambertMaterial({color: 'yellow'}));
+	hoverArea.position.set(1000000, 1000000, 1000000);
+	hoverArea.rotation.set(
+		toRadians(meshControls.rotX),
+		toRadians(meshControls.rotY),
+		toRadians(meshControls.rotZ)
+	);
+	scene.add(hoverArea);
+
 	const shape = new Shape();
 	shape.moveTo(0, 0);
 	shape.lineTo(10, 10);
@@ -68,7 +76,16 @@ function init() {
 	});
 	geometry.rotateZ(toRadians(90));
 
-	mesh = new InstancedMesh(geometry, new MeshLambertMaterial({color: Math.random() * 0xffffff}), count);
+	dummy = new Mesh(geometry.clone());
+
+	mesh = new InstancedMesh(
+		geometry,
+		new MeshLambertMaterial({
+			color: Math.random() * 0xffffff,
+			transparent: true,
+			opacity: .8,
+		}),
+		count);
 	scene.add(mesh);
 
 	const gui = new GUI();
@@ -111,7 +128,6 @@ function animate() {
 
 	stats.update();
 }
-
 function render() {
 	light.position.set(lightControls.x, lightControls.y, lightControls.z);
 	light.intensity = lightControls.intensity;
@@ -129,14 +145,42 @@ function render() {
 			for (let y = 0; y < 10; y++) {
 				for (let z = 0; z < 10; z++) {
 					let distanceOffset = 1;
-					if (updateArray[i]) {
-						distanceOffset = normalize(updateArray[i]);
+					// if (updateArray[i]) {
+					// 	distanceOffset = normalize(updateArray[i]);
+					// }
+
+					dummy.position.set(
+						-40 + x * 10,
+						-50 + y * 10,
+						-40 + z * 10
+					);
+
+					dummy.updateMatrix();
+
+					dummy.geometry.computeBoundingBox();
+					hoverArea.geometry.computeBoundingBox();
+
+					const hoverBox = hoverArea.geometry.boundingBox;
+					if (hoverBox) {
+						const isIntersects = dummy.geometry.boundingBox?.intersectsBox(hoverBox);
+						distanceOffset = isIntersects ? dummy.position.distanceTo(new Vector3(0,0,0)) : 0;
+
+						updateArray[i] = map(distanceOffset,
+							0, 82,
+							0, 1
+						);
+
+						if (distanceOffset) {
+							// console.log(distanceOffset);
+							// console.log(dummy.position);
+						}
+						// console.log(distanceOffset);
 					}
 
 					dummy.position.set(
-						-40 + x * 10 * distanceOffset,
-						-50 + y * 10 * distanceOffset,
-						-40 + z * 10 * distanceOffset
+						-40 + x * 10 * updateArray[i],
+						-50 + y * 10 * updateArray[i],
+						-40 + z * 10 * updateArray[i]
 					);
 
 					dummy.updateMatrix();
@@ -178,7 +222,11 @@ function onPointerEvent(event: MouseEvent) {
 	if (intersects.length > 0) {
 		for (const intersect of intersects) {
 			if (!intersect.instanceId) continue;
-			console.log(intersect.instanceId);
+			hoverArea.position.set(
+				intersect.point.x,
+				intersect.point.y,
+				intersect.point.z,
+			);
 			// console.log('intersect.distance', intersect.distance);
 			updateArray[intersect.instanceId] = invertOffset(intersect.point.distanceTo(new Vector3(0, 0, 0)));
 			// mesh.getMatrixAt(intersect.instanceId, dummy.matrix);
